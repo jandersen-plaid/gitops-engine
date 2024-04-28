@@ -6,6 +6,8 @@ ifdef IMAGE_NAMESPACE
 IMAGE_PREFIX=${IMAGE_NAMESPACE}/
 endif
 
+CLIENT_K8S_VERSION = $(shell grep "client-go" go.mod | head -n 1 | cut -d ' ' -f2)
+
 .PHONY: generate
 generate: agent-manifests
 
@@ -30,3 +32,7 @@ agent-manifests:
 .PHONY: generate-mocks
 generate-mocks:
 	go generate -x -v "github.com/argoproj/gitops-engine/pkg/utils/tracing/tracer_testing"
+
+.PHONY: update-parser
+update-parser:
+	curl -L https://raw.githubusercontent.com/kubernetes/client-go/$(CLIENT_K8S_VERSION)/applyconfigurations/internal/internal.go > pkg/utils/kube/scheme/internal/parser.go

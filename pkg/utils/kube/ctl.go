@@ -30,7 +30,6 @@ type OnKubectlRunFunc func(command string) (CleanupFunc, error)
 type Kubectl interface {
 	ManageResources(config *rest.Config, openAPISchema openapi.Resources) (ResourceOperations, func(), error)
 	LoadOpenAPISchema(config *rest.Config) (openapi.Resources, *managedfields.GvkParser, error)
-	ConvertToVersion(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error)
 	DeleteResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, deleteOptions metav1.DeleteOptions) error
 	GetResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error)
 	CreateResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, obj *unstructured.Unstructured, createOptions metav1.CreateOptions, subresources ...string) (*unstructured.Unstructured, error)
@@ -306,19 +305,6 @@ func (k *KubectlCmd) ManageResources(config *rest.Config, openAPISchema openapi.
 		log:           k.Log,
 		onKubectlRun:  k.OnKubectlRun,
 	}, cleanup, nil
-}
-
-// ConvertToVersion converts an unstructured object into the specified group/version
-func (k *KubectlCmd) ConvertToVersion(obj *unstructured.Unstructured, group string, version string) (*unstructured.Unstructured, error) {
-	span := k.Tracer.StartSpan("ConvertToVersion")
-	from := obj.GroupVersionKind().GroupVersion()
-	span.SetBaggageItem("from", from.String())
-	span.SetBaggageItem("to", schema.GroupVersion{Group: group, Version: version}.String())
-	defer span.Finish()
-	if from.Group == group && from.Version == version {
-		return obj.DeepCopy(), nil
-	}
-	return convertToVersionWithScheme(obj, group, version)
 }
 
 func (k *KubectlCmd) GetServerVersion(config *rest.Config) (string, error) {

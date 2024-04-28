@@ -28,14 +28,7 @@ type MockKubectlCmd struct {
 	Version       string
 	DynamicClient dynamic.Interface
 
-	convertToVersionFunc *func(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error)
-	getResourceFunc      *func(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error)
-}
-
-// WithConvertToVersionFunc overrides the default ConvertToVersion behavior.
-func (k *MockKubectlCmd) WithConvertToVersionFunc(convertToVersionFunc func(*unstructured.Unstructured, string, string) (*unstructured.Unstructured, error)) *MockKubectlCmd {
-	k.convertToVersionFunc = &convertToVersionFunc
-	return k
+	getResourceFunc *func(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error)
 }
 
 // WithGetResourceFunc overrides the default ConvertToVersion behavior.
@@ -74,15 +67,6 @@ func (k *MockKubectlCmd) DeleteResource(ctx context.Context, config *rest.Config
 
 func (k *MockKubectlCmd) CreateResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, obj *unstructured.Unstructured, createOptions metav1.CreateOptions, subresources ...string) (*unstructured.Unstructured, error) {
 	return nil, nil
-}
-
-// ConvertToVersion converts an unstructured object into the specified group/version
-func (k *MockKubectlCmd) ConvertToVersion(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error) {
-	if k.convertToVersionFunc != nil {
-		return (*k.convertToVersionFunc)(obj, group, version)
-	}
-
-	return obj, nil
 }
 
 func (k *MockKubectlCmd) GetServerVersion(config *rest.Config) (string, error) {
