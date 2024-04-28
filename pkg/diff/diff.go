@@ -20,7 +20,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/jsonmergepatch"
 	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
-	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/structured-merge-diff/v4/fieldpath"
 	"sigs.k8s.io/structured-merge-diff/v4/merge"
 	"sigs.k8s.io/structured-merge-diff/v4/typed"
@@ -29,8 +28,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/diff/internal/fieldmanager"
 	"github.com/argoproj/gitops-engine/pkg/sync/resource"
 	jsonutil "github.com/argoproj/gitops-engine/pkg/utils/json"
-	gescheme "github.com/argoproj/gitops-engine/pkg/utils/kube/scheme"
-	kubescheme "github.com/argoproj/gitops-engine/pkg/utils/kube/scheme"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube/scheme"
 )
 
 const (
@@ -315,13 +313,15 @@ type SMDParams struct {
 func structuredMergeDiff(p *SMDParams) (*DiffResult, error) {
 
 	gvk := p.config.GetObjectKind().GroupVersionKind()
-	pt := gescheme.ResolveParseableType(gvk, p.gvkParser)
+	pt := scheme.ResolveParseableType(gvk, p.gvkParser)
 
 	// Build typed value from live and config unstructures
 	tvLive, err := pt.FromUnstructured(p.live.Object)
 	if err != nil {
 		return nil, fmt.Errorf("error building typed value from live resource: %w", err)
 	}
+
+	// Build typed value from live and config unstructures
 	tvConfig, err := pt.FromUnstructured(p.config.Object)
 	if err != nil {
 		return nil, fmt.Errorf("error building typed value from config resource: %w", err)
@@ -480,13 +480,13 @@ func generateSchemeDefaultPatch(kubeObj runtime.Object) ([]byte, error) {
 
 	// 1) Call scheme defaulter functions on a clone of our k8s resource object
 	patched := kubeObj.DeepCopyObject()
-	kubescheme.Scheme.Default(patched)
+	scheme.Scheme.Default(patched)
 
 	// 2) Compare the original object (pre-defaulter funcs) with patched object (post-default funcs),
 	// and generate a patch that can be applied against the original
 	patch, success, err := CreateTwoWayMergePatch(kubeObj, patched, kubeObj.DeepCopyObject())
 
-	// Ignore empty patch: this only means that kubescheme.Scheme.Default(...) made no changes.
+	// Ignore empty patch: this only means that scheme.Scheme.Default(...) made no changes.
 	if string(patch) == "{}" && err == nil {
 		success = true
 	}
@@ -520,7 +520,7 @@ func applyPatch(liveBytes []byte, patchBytes []byte, newVersionedObject func() (
 	// which are not in the predictedLive struct. predictedLive is thus "tainted" and we should not use it directly.
 	if err = json.Unmarshal(predictedLiveBytes, &predictedLive); err == nil {
 
-		// 1) Calls 'kubescheme.Scheme.Default(predictedLive)' and generates a patch containing the delta of that
+		// 1) Calls 'scheme.Scheme.Default(predictedLive)' and generates a patch containing the delta of that
 		// call, which can then be applied to predictedLiveBytes.
 		//
 		// Why do we do this? Since predictedLive is "tainted" (missing extra fields), we cannot use it to populate
@@ -594,7 +594,7 @@ func applyPatch(liveBytes []byte, patchBytes []byte, newVersionedObject func() (
 // given obj. It will apply the patch using the given objBytes and return
 // the new patched object.
 func patchDefaultValues(objBytes []byte, obj runtime.Object) ([]byte, error) {
-	// 1) Call 'kubescheme.Scheme.Default(obj)' to generate a patch containing
+	// 1) Call 'scheme.Scheme.Default(obj)' to generate a patch containing
 	// the default values for the given scheme.
 	patch, err := generateSchemeDefaultPatch(obj)
 	if err != nil {
